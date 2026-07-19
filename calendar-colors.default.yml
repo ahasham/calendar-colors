@@ -1,0 +1,191 @@
+# calendar-colors.default.yml — SHIPPED defaults, no personal data.
+# GENERATED from taxonomy.py (T1 migration step 1); values are byte-identical to
+# the pre-refactor hardcoded scheme. User overrides live in the user config
+# (~/.claude/config/calendar-colors.yml) and are deep-merged over this at load.
+#
+#   categories:  category -> {colorId (Google 1..11 or null), emoji, gmail label}
+#   rules:       invariants enforced by taxonomy.validate_config()
+#                color_merges     — category groups allowed to share a colorId
+#                                   (errands+household deliberately share Graphite/8)
+#                forbidden_on_work— purples banned on a work cal (Lavender/1 + Grape/3;
+#                                   Blueberry/9 navy is allowed — carries career/interview)
+#
+# NOTE: keyword routing (_CATEGORY_KEYWORDS) intentionally stays in code — it is
+# ordered, regex-coupled, and generic (not personal), so it is not published here.
+
+version: 1
+categories:
+  errands:
+    colorId: '2'
+    emoji: ✅
+    gmail: null
+  fitness:
+    colorId: '10'
+    emoji: 🏋️
+    gmail: null
+  partner:
+    colorId: '3'
+    emoji: 💜
+    gmail: 💜 Family
+  social:
+    colorId: '4'
+    emoji: 🍷
+    gmail: 🤝 Friends
+  school:
+    colorId: '5'
+    emoji: 🎒
+    gmail: 🎒 School
+  travel:
+    colorId: '6'
+    emoji: ✈️
+    gmail: ✈️ Travel
+  birthday:
+    colorId: '1'
+    emoji: 🎂
+    gmail: null
+  household:
+    colorId: '2'
+    emoji: 🏠
+    gmail: 🏠 Household
+  career:
+    colorId: '9'
+    emoji: 💼
+    gmail: 💼 Work
+  deep_work:
+    colorId: '11'
+    emoji: 🧠
+    gmail: null
+  health:
+    colorId: '10'
+    emoji: 🩺
+    gmail: 🩺 Health
+  anniversary:
+    colorId: '3'
+    emoji: 💍
+    gmail: null
+  memorial:
+    colorId: '1'
+    emoji: 🙏
+    gmail: null
+  working_location:
+    colorId: '8'
+    emoji: 🏢
+    gmail: null
+  broad_meeting:
+    colorId: '8'
+    emoji: 👥
+    gmail: null
+  regular_meeting:
+    colorId: '7'
+    emoji: 🗓️
+    gmail: null
+  interview:
+    colorId: '9'
+    emoji: 🧑‍💼
+    gmail: null
+  finance:
+    colorId: null
+    emoji: 💰
+    gmail: 💰 Finance
+  reading:
+    colorId: null
+    emoji: 📰
+    gmail: 📰 Reading
+  job_search:
+    colorId: null
+    emoji: 🎯
+    gmail: 🎯 Job Search
+calendar_categories:
+- errands
+- fitness
+- partner
+- social
+- school
+- travel
+- birthday
+- household
+- career
+- deep_work
+- health
+occasion_color:
+  birthday: '1'
+  anniversary: '3'
+  memorial: '1'
+gmail_label_colors:
+  partner:
+  - '#a479e2'
+  - '#ffffff'
+  social:
+  - '#efa093'
+  - '#000000'
+  school:
+  - '#fad165'
+  - '#000000'
+  travel:
+  - '#ffad47'
+  - '#000000'
+  household:
+  - '#999999'
+  - '#ffffff'
+  career:
+  - '#1c4587'
+  - '#ffffff'
+  health:
+  - '#16a766'
+  - '#ffffff'
+  finance:
+  - '#2da2bb'
+  - '#ffffff'
+  reading:
+  - '#cccccc'
+  - '#000000'
+  job_search:
+  - '#3c78d8'
+  - '#ffffff'
+operational_label_colors:
+  '@Action':
+  - '#cc3a21'
+  - '#ffffff'
+  '@Waiting':
+  - '#ffbc6b'
+  - '#000000'
+  '@Read-later':
+  - '#c9daf8'
+  - '#000000'
+# default per-calendar feature flags (a user `calendars:` row overrides these).
+# NOTE: title_rewrite is owned by the title-rewrite subsystem, not the styling
+# config, so it is intentionally absent here.
+calendar_defaults:
+  color: true
+  emoji: true
+# Allocation rules. color_merges = category groups DELIBERATELY sharing a colorId
+# (validate_config requires every color collision to be declared here, so silent
+# drift like the old 5-way Graphite pile-up is caught). Frequency principle: the
+# most-frequent categories hold SOLO colorIds; a shared colorId is only legitimate
+# for low-frequency and/or cross-calendar pairs, or a high-stakes category that
+# claims its own color regardless of volume (interview). No two HIGH-frequency
+# categories should share — validate_config soft-warns when a frequency map is
+# supplied (see --frequency). high_frequency_threshold = events/6mo above which a
+# category counts as "high" for that collision warning.
+rules:
+  color_merges:
+  - - errands            # 2 Sage — home/chores (errands follows household)
+    - household
+  - - health             # 10 Basil — wellness pair (both low-frequency)
+    - fitness
+  - - career             # 9 Blueberry (navy) — the professional bucket; interviews ARE
+    - interview          #   career/hiring events. Navy is allowed on work (see forbidden_on_work).
+  - - broad_meeting      # 8 Graphite — the "recede" bucket (town halls + banners)
+    - working_location
+  - - partner            # 3 Grape — the couple (anniversary is rare)
+    - anniversary
+  - - birthday           # 1 Lavender — a date about a person (memorial is rare)
+    - memorial
+  high_frequency_threshold: 40
+  # Purples banned on the work calendar (auto-recolored to gray if they'd land there).
+  # Lavender(1, periwinkle) + Grape(3, magenta) stay banned — no purple for meetings.
+  # Blueberry(9, indigo/navy) is ALLOWED (reads as dark blue, not purple): it carries
+  # the career/interview professional bucket, and interviews live on the work cal.
+  forbidden_on_work:
+  - '1'
+  - '3'

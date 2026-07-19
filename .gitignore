@@ -1,0 +1,19 @@
+# NEVER commit personal data or secrets.
+# Your filled-in overlay (calendar IDs, token paths, names):
+config.yml
+calendar-colors.yml
+*.local.yml
+
+# OAuth tokens / client secrets:
+oauth/
+token*.json
+client_secret*.json
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.DS_Store

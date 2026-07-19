@@ -1,0 +1,56 @@
+# calendar-colors.example.yml — EXAMPLE personal overlay (copy, fill in, keep private).
+#
+# This is the ONLY file with personal data (calendar IDs, OAuth token paths, your
+# names). It is DEEP-MERGED over calendar-colors.default.yml at load time. Point the
+# loader at your copy with the CALENDAR_COLORS_CONFIG env var, e.g.
+#     export CALENDAR_COLORS_CONFIG=~/.config/calendar-colors/config.yml
+# NEVER commit your filled-in copy. (The shipped default already has the full color
+# scheme — you only add instance data here.)
+
+paths:
+  # Where your OAuth token JSON files live (see README "OAuth setup").
+  oauth_dir: ~/.config/calendar-colors/oauth
+  state_dir: ~/.config/calendar-colors/state
+
+accounts:
+  default:
+    token: token.json          # filename inside oauth_dir
+  # A second Google account (e.g. a work calendar) is optional:
+  work:
+    token: token-work.json
+
+# Your display name(s) — used to detect "you" in event attendee/organizer fields.
+self_names:
+- yourname
+
+# One row per calendar you want styled. `id` is the Google calendar id
+# ("primary", or the long ...@group.calendar.google.com address).
+calendars:
+- id: primary
+  alias: Personal
+  account: default
+  color: true
+  emoji: true
+  window_days: 365
+- id: your-shared-calendar-id@group.calendar.google.com
+  alias: Shared
+  account: default
+  color: true
+  emoji: true
+  window_days: 365
+# A work calendar: color-only (no emoji), meetings classified via the career default.
+- id: you@your-work-domain.com
+  alias: Work
+  account: work
+  color: true
+  emoji: color_only
+  default_category: career
+  hard_color_only: true
+  window_days: 120
+
+# Optional: override any shipped color/emoji for yourself (same shape as
+# calendar-colors.default.yml `categories:`). Most people won't need this.
+# categories:
+#   deep_work:
+#     colorId: '11'
+#     emoji: 🧠
