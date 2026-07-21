@@ -1,6 +1,6 @@
 """Tests for gcal/allocator.py — the dynamic-taxonomy color solver.
 
-Run: python3 -m pytest tests/test_allocator.py -v
+Run: python3 -m pytest <this dir>/test_allocator.py -v
 """
 from __future__ import annotations
 
@@ -9,9 +9,13 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parent.parent   # repo root (bundle layout)
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
+# Layout-agnostic bootstrap: walk up to the dir that holds taxonomy.py, so this
+# file is byte-identical in the monorepo (lib/gcal/tests/) and the public bundle
+# (tests/) and can be synced verbatim.
+for _up in Path(__file__).resolve().parents:
+    if (_up / "taxonomy.py").exists():
+        sys.path.insert(0, str(_up))
+        break
 from gcal import allocator as A  # noqa: E402
 import taxonomy as tax  # noqa: E402
 
