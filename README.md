@@ -67,6 +67,26 @@ Work meetings are further split by size (≥17 attendees or a broadcast keyword 
 `broad_meeting`, else `regular_meeting`). Purples are kept off the work calendar
 except navy/Blueberry (which carries career + interview).
 
+## Dynamic taxonomy
+
+The category set isn't fixed — a weekly job grows and retires it from your actual
+calendar, under Google's hard 11-color cap. Three layers are decoupled:
+
+- **categories** — unbounded; discovered from recurring unclassified events and
+  retired when they go dead.
+- **colors** — the scarce 11 colorIds, *allocated* by `gcal/allocator.py` (three are
+  pinned to a fixed meaning: 🔴 Tomato = protect, ⬜ Graphite = recede, 🔵 Blueberry
+  = professional).
+- **emoji** — unbounded and always unique, so a new category is instantly
+  distinguishable even while it shares a color with a sibling.
+
+The weekly loop runs a frequency census (`frequency.py --json`), lets an LLM
+propose new categories / retirements, and hands them to the allocator. **Additive**
+changes (a new category sharing a sibling's color; retiring a dead one) auto-apply;
+changes that would **recolor an existing category** are queued for your approval.
+Hysteresis requires a change to persist across several weekly censuses before it
+takes effect, so colors stay stable enough to build muscle memory.
+
 ## Install
 
 ```bash
@@ -124,10 +144,12 @@ python -m gcal.frequency
 
 ## Automation (macOS)
 
-`launch-agents/` has two `.plist.template` files — a daily personal-styling job and
-a daily work-calendar job. Replace the `__PLACEHOLDERS__`, drop them in
-`~/Library/LaunchAgents/`, and `launchctl bootstrap`/`kickstart` them. (Linux users
-can run the same commands from `cron`.)
+`launch-agents/` has `.plist.template` files — a daily personal-styling job, a
+daily work-calendar job, and a weekly dynamic-taxonomy job (`calendar-learn-weekly`,
+which also has a `calendar-learn-weekly.sh.template` driver and needs an LLM agent
+CLI). Replace the `__PLACEHOLDERS__`, drop the plists in `~/Library/LaunchAgents/`,
+and `launchctl bootstrap`/`kickstart` them. (Linux users can run the same commands
+from `cron`.)
 
 ## Notes & limits
 

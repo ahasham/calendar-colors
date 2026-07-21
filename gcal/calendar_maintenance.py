@@ -1089,9 +1089,17 @@ def main(argv: Optional[list[str]] = None) -> int:
         out = [{"normalized": k, "example": v["example"], "count": v["count"],
                 "calendars": sorted(v["calendars"])}
                for k, v in sorted(unknowns.items())]
-        print(json.dumps({"unknown_titles": out, "count": len(out),
-                          "categories": sorted(_ci.CATEGORY_STYLE.keys())},
-                         ensure_ascii=False, indent=2))
+        # Enriched with dynamic-taxonomy proposal context: the LLM can either slot
+        # a title into an existing category (learned_styles.json) OR propose a NEW
+        # category / retirement per allocator.proposal_context().
+        try:
+            from . import allocator as _alloc  # type: ignore
+        except ImportError:
+            from gcal import allocator as _alloc  # type: ignore
+        payload = {"unknown_titles": out, "count": len(out),
+                   "categories": sorted(_ci.CATEGORY_STYLE.keys())}
+        payload.update(_alloc.proposal_context(_tax.CONFIG))
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0
 
     fc = None if str(args.feature_config).lower() == "none" \

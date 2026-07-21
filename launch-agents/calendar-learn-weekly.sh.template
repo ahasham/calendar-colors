@@ -1,0 +1,64 @@
+#!/bin/bash
+# calendar-learn-weekly.sh — TEMPLATE for the weekly dynamic-taxonomy loop.
+# Replace the placeholders and install via the matching .plist.template:
+#   __HOME__     your home dir, e.g. /Users/you
+#   __INSTALL__  where you cloned this repo, e.g. /Users/you/calendar-colors
+#   __PY__       a python with pyyaml, e.g. __INSTALL__/.venv/bin/python3
+#
+# REQUIRES an LLM agent CLI on PATH to cluster/classify (this template uses
+# `claude -p`; swap for your own agent if different). The deterministic pieces
+# (census, allocator, restyle) are plain Python and need no LLM.
+#
+# What it does: runs a frequency census, asks the agent to (a) map new event types
+# into existing categories and (b) propose NEW categories / retirements, then hands
+# the candidates to allocator.py — which AUTO-APPLIES additive changes to the user
+# config and QUEUES incumbent recolors to state/calendar/pending_recolors.json for
+# your approval — and restyles so applied changes propagate.
+set -o pipefail
+export HOME=__HOME__
+export PYTHONPATH=__INSTALL__
+PY="__PY__"
+SCRIPT="__INSTALL__/gcal/calendar_maintenance.py"
+ALLOC="__INSTALL__/gcal/allocator.py"
+CFG="__INSTALL__/gcal/config.py"
+# State lives where calendar_maintenance.py + allocator.py default to, so no path
+# flags are needed and the queue the summary points at is the one they write.
+STATE_DIR="$HOME/.claude/state/calendar"
+CENSUS="$STATE_DIR/census.json"
+CAND="$STATE_DIR/candidates.json"
+PENDING="$STATE_DIR/pending_recolors.json"
+LEARNED="$STATE_DIR/learned_styles.json"
+mkdir -p "$STATE_DIR"
+CALS=$("$PY" "$CFG" --calendar-ids --account default)
+
+# 1) frequency census (machine-readable) — allocation + retirement signal.
+"$PY" -m gcal.frequency --json --window-days 365 > "$CENSUS"
+
+read -r -d '' PROMPT <<EOF
+You are the calendar self-learning job, running non-interactively. Do EXACTLY these steps:
+
+1. Read the census: cat $CENSUS
+   (total = per-category counts over 365d; retirement_candidates = categories with
+   0 events holding a solo color; frequency_warnings.)
+2. Run and read: $PY $SCRIPT --calendars "$CALS" --window-days 365 --learn-unknowns
+   It prints "unknown_titles" plus "existing_categories", "taken_emojis",
+   "semantic_buckets", and "candidate_schema".
+3. For EACH unknown title decide ONE of:
+   (a) it fits an EXISTING category -> add "<normalized>": {"category":"<cat>","source":"llm"}
+       under the "rules" object of $LEARNED (PRESERVE existing rules; valid JSON); OR
+   (b) a coherent, recurring CLUSTER is a genuinely NEW category -> emit an "add"
+       candidate (see candidate_schema): UNIQUE emoji (not in taken_emojis), right
+       semantic_bucket, a nearest_sibling to share a color with, frequency = cluster sum.
+4. For each census "retirement_candidates" entry, emit {"kind":"retire","name":"<cat>"}
+   ONLY if it is genuinely obsolete.
+5. Write ALL candidates to $CAND as {"candidates":[ ... ]} ({"candidates":[]} if none).
+6. Run the allocator (auto-applies ADDITIVE, queues RECOLORS):
+   $PY $ALLOC --frequency $CENSUS --candidates $CAND --apply-additive
+7. Re-style so applied changes propagate:
+   $PY $SCRIPT --calendars "$CALS" --window-days 365 --restyle-all --apply
+8. Print ONE summary line: N learned, M added, K retired, recolors_queued. If
+   recolors_queued > 0, note that $PENDING has scheme changes awaiting approval.
+Do not touch any other files. Do not ask questions.
+EOF
+
+claude -p "$PROMPT" --dangerously-skip-permissions

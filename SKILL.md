@@ -81,10 +81,11 @@ just where regular_meeting sits; personal categories may use it (nothing does to
 |---|---|
 | `lib/taxonomy.py` | color/emoji SSOT + `CATEGORIES`, `CALENDAR_CATEGORY_STYLE`, `OPERATIONAL_LABEL_COLORS`, `color_id()/emoji()` |
 | `lib/gcal/calendar_maintenance.py` | the styling engine (classify → color/emoji); `--restyle-all`, `--learn-unknowns`, `--prune`… classify reads title + high-precision DESCRIPTION signals (`_DESC_CATEGORY_SIGNALS`) |
-| `lib/gcal/frequency.py` | `python3 -m gcal.frequency` — per-category frequency census (the data behind the allocation rule; also surfaces the high-freq-collision warning) |
+| `lib/gcal/frequency.py` | `python3 -m gcal.frequency` — per-category frequency census (allocation data + high-freq-collision warning); `--json` adds `retirement_candidates` for the weekly loop |
+| `lib/gcal/allocator.py` | dynamic-taxonomy solver: allocates the 11 colors under semantic-anchor pins + frequency + hysteresis; classifies changes additive-vs-recolor; writes additive to the user overlay, queues recolors. CLI: `allocator.py --frequency <census> --candidates <cand> --apply-additive` |
 | `com.example.calendar-maintain-daily` | 5:40am — styles primary+shared+school+events (`--restyle-all`) |
 | `com.example.calendar-work-color-daily` | 6:10am — work cal, color-only (`--emoji-off --default-category career`) |
-| `com.example.calendar-learn-weekly` | Sun — LLM classifies NEW event types → `state/calendar/learned_styles.json` |
+| `com.example.calendar-learn-weekly` | Sun — LLM maps new event types → `learned_styles.json` AND proposes new categories/retirements → `allocator.py` (dynamic taxonomy) |
 | `com.example.cron-staleness-watchdog` | 10am — monitors all jobs (staleness + errored) |
 | `lib/gmail/hygiene.py` + `gmail-hygiene-weekly` / `gmail-daily-flags` | Gmail label colors + filters (server-side) |
 | `gold/Research/Google Calendar beautification methodology.md` | full design rationale (v1→v3) |
@@ -142,12 +143,38 @@ The scriptable steps live in `lib/gcal/setup_wizard.py`; the human decisions
    → `~/.claude/lib/`; then `launchctl bootout`/`bootstrap` + `kickstart -k` each
    job and verify exit 0 (the T1 walkthrough procedure). macOS/launchd only.
 
+## Dynamic taxonomy — categories learn/retire themselves
+The category set is not a fixed hand-curated list. The weekly learn job evolves it
+under the 11-color ceiling via three decoupled layers: **categories** (unbounded,
+learned), **colors** (capped at 11, allocated by `gcal/allocator.py`), **emoji**
+(unbounded, always unique — so a new category is visually distinct immediately and
+shares a color until it earns a solo slot). Weekly flow: `frequency.py --json`
+census → `--learn-unknowns` (emits proposal context) → the LLM maps titles into
+existing categories OR proposes NEW categories / RETIREMENTS → `allocator.py
+--apply-additive`.
+
+**Apply autonomy:** the allocator classifies each change.
+- **ADDITIVE (auto-apply):** a new category taking a unique emoji + sharing a
+  sibling's color (no incumbent recolored), or retiring a dead solo category →
+  written straight to the user overlay.
+- **INCUMBENT RECOLOR (gate):** any change that moves a live category's colorId →
+  queued to `state/calendar/pending_recolors.json` for human approval.
+
+**Anti-churn:** hysteresis — a solo-promotion or retirement must HOLD across
+`hysteresis_weeks` / `retire_dead_weeks` consecutive censuses before it fires
+(state in `state/calendar/allocation_state.json`). Semantic anchors (11=protect/red,
+8=recede/gray, 9=professional/navy) are pinned, never frequency-reassigned. A
+solo-promotion is only proposed when the candidate names an explicit
+`demote` + `demote_into` — the solver never fabricates an incumbent demotion.
+
 ## When invoked
 1. Show the current scheme by loading it: `python3 -c "import taxonomy; ..."`
    (taxonomy loads `calendar-colors.default.yml` + the user overlay — the loaded
    values are truth; don't trust prose copies, they drift).
-2. If the user wants a change, edit `lib/calendar-colors.default.yml` (or a
+2. **Check for pending recolors:** if `state/calendar/pending_recolors.json` has a
+   non-empty `changes[]`, present them for approval (gated scheme changes from the
+   weekly loop). On approval: `allocator.apply_changes` + `write_user_overlay` →
+   run tests → re-apply the jobs. Then empty the queue.
+3. If the user wants a change, edit `calendar-colors.default.yml` (or a
    `categories:` overlay in the user config), run the tests, re-apply via the jobs,
    and confirm idempotent (`--restyle-all` → restyle=0 on re-run).
-3. Keep `gold/Research/Google Calendar beautification methodology.md` + the
-   memory `[[calendar-auto-styling-system]]` in sync with any scheme change.

@@ -99,6 +99,23 @@ def census(window_days: int = 180, recent_days: int = 90,
             "scanned": scanned, "errors": errors, "as_of": now.strftime("%Y-%m-%d")}
 
 
+def retirement_candidates(census: dict, cfg: Optional[dict] = None) -> list[str]:
+    """Categories safe to RETIRE (demote to a merge → free a color slot): zero
+    events across the full window, holding a SOLO non-anchor colorId, and not
+    stakes/occasion-exempt. Only surfaces the frequency signal — the hysteresis
+    gate (must stay dead N consecutive censuses) is the allocator's job."""
+    try:
+        from . import allocator as _alloc
+    except ImportError:  # pragma: no cover
+        from gcal import allocator as _alloc
+    cfg = cfg if cfg is not None else _tax.CONFIG
+    total = census.get("total", {})
+    solos = _alloc.solo_categories(cfg)
+    exempt = _alloc.exempt_from_retirement(cfg)
+    return sorted(c for c in solos
+                  if c not in exempt and int(total.get(c, 0) or 0) == 0)
+
+
 def _bar(n: int, top: int, width: int = 20) -> str:
     if top <= 0:
         return ""
@@ -130,6 +147,11 @@ def render(c: dict) -> str:
         lines.append("")
         lines.append("Frequency warnings:")
         lines += [f"  - {w}" for w in freq_warns]
+    retire = retirement_candidates(c)
+    if retire:
+        lines.append("")
+        lines.append("Retirement candidates (0 events, solo color — held N censuses → free the slot):")
+        lines += [f"  - {r}" for r in retire]
     if c["errors"]:
         lines.append("")
         lines.append("Errors:")
@@ -141,8 +163,24 @@ def main(argv: Optional[list[str]] = None) -> int:
     p = argparse.ArgumentParser(description="Per-category calendar frequency census.")
     p.add_argument("--window-days", type=int, default=180)
     p.add_argument("--recent-days", type=int, default=90)
+    p.add_argument("--json", action="store_true",
+                   help="Emit machine-readable census (counts + retirement "
+                        "candidates + frequency warnings) for the weekly loop.")
     args = p.parse_args(argv)
-    print(render(census(window_days=args.window_days, recent_days=args.recent_days)))
+    c = census(window_days=args.window_days, recent_days=args.recent_days)
+    if args.json:
+        import json
+        warns = _tax.validate_config(_tax.CONFIG, frequency=dict(c["total"]))
+        print(json.dumps({
+            "as_of": c["as_of"], "window_days": c["window_days"],
+            "scanned": c["scanned"], "total": dict(c["total"]),
+            "recent": dict(c["recent"]),
+            "retirement_candidates": retirement_candidates(c),
+            "frequency_warnings": [w for w in warns if "high-frequency" in w],
+            "errors": c["errors"],
+        }, ensure_ascii=False, indent=2))
+    else:
+        print(render(c))
     return 0
 
 
