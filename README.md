@@ -109,7 +109,10 @@ git clone https://github.com/ahasham/calendar-colors.git
 cd calendar-colors
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
-python -m pytest        # optional: run the test suite
+
+# optional: run the test suite (installs pytest)
+pip install -r requirements-dev.txt
+python -m pytest
 ```
 
 ## OAuth setup
