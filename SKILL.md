@@ -83,6 +83,7 @@ just where regular_meeting sits; personal categories may use it (nothing does to
 | `lib/gcal/calendar_maintenance.py` | the styling engine (classify → color/emoji); `--restyle-all`, `--learn-unknowns`, `--prune`… classify reads title + high-precision DESCRIPTION signals (`_DESC_CATEGORY_SIGNALS`) |
 | `lib/gcal/frequency.py` | `python3 -m gcal.frequency` — per-category frequency census (allocation data + high-freq-collision warning); `--json` adds `retirement_candidates` for the weekly loop |
 | `lib/gcal/allocator.py` | dynamic-taxonomy solver: allocates the 11 colors under semantic-anchor pins + frequency + hysteresis; classifies changes additive-vs-recolor; writes additive to the user overlay, queues recolors. CLI: `allocator.py --frequency <census> --candidates <cand> --apply-additive` |
+| `lib/gcal/title_rewrite.py` + `title_rewrite_run.py` | OPTIONAL title-text normalization (separate from styling): no-info-loss validator + confidence gate + reversible apply; only on calendars with `title_rewrite: llm`. Driven by `calendar-title-rewrite-weekly` |
 | `com.example.calendar-maintain-daily` | 5:40am — styles primary+shared+school+events (`--restyle-all`) |
 | `com.example.calendar-work-color-daily` | 6:10am — work cal, color-only (`--emoji-off --default-category career`) |
 | `com.example.calendar-learn-weekly` | Sun — LLM maps new event types → `learned_styles.json` AND proposes new categories/retirements → `allocator.py` (dynamic taxonomy) |

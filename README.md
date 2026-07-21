@@ -87,6 +87,21 @@ changes that would **recolor an existing category** are queued for your approval
 Hysteresis requires a change to persist across several weekly censuses before it
 takes effect, so colors stay stable enough to build muscle memory.
 
+## Title rewriting (optional, off by default)
+
+Distinct from styling — which only sets a color and prepends an emoji, never
+touching your words — a separate weekly job can *normalize the title text itself*
+via an LLM (drop a redundant self-reference, fix casing, expand known
+abbreviations). It runs **only** on calendars whose config sets `title_rewrite:
+llm`, and every proposed rewrite passes a **no-info-loss validator + confidence
+gate** (`gcal/title_rewrite.py`): names, numbers/codes, `(parentheticals)`,
+`[tags]`, and `/commands` must survive verbatim, or the change is rejected. Only
+the safe, high-confidence subset auto-applies; the rest goes to a review file, and
+**every applied change is reversible** (`title_reversions.jsonl`). It's kept out of
+the daily styling engine on purpose: rewriting content is higher-risk than coloring
+it. Wire it up with `launch-agents/calendar-title-rewrite-weekly.*` (needs an LLM
+agent CLI to propose titles).
+
 ## Install
 
 ```bash

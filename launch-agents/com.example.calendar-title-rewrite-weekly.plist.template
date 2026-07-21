@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TEMPLATE. Replace the placeholders, then install (see README "Automation"):
+       __LABEL__     e.g. com.you.calendar-title-rewrite-weekly
+       __INSTALL__   where you cloned this repo, e.g. /Users/you/calendar-colors
+     OPTIONAL weekly LLM title normalization. Runs calendar-title-rewrite-weekly.sh
+     (fill in its own placeholders first). Only touches calendars whose config sets
+     title_rewrite: llm. REQUIRES an LLM agent CLI (the script uses `claude -p`). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>__LABEL__</string>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>__INSTALL__/launch-agents/calendar-title-rewrite-weekly.sh</string>
+	</array>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Weekday</key>
+		<integer>0</integer>
+		<key>Hour</key>
+		<integer>7</integer>
+		<key>Minute</key>
+		<integer>15</integer>
+	</dict>
+</dict>
+</plist>

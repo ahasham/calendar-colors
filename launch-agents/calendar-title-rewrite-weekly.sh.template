@@ -1,0 +1,65 @@
+#!/bin/bash
+# calendar-title-rewrite-weekly.sh — TEMPLATE for the optional weekly LLM title
+# NORMALIZATION job. OFF by default: only calendars whose config sets
+# `title_rewrite: llm` are touched (title_rewrite_run._llm_calendars() is the source
+# of truth — never hardcode the list). Every proposed rewrite passes a no-info-loss
+# validator + confidence/risk gate (gcal/title_rewrite.py); only the safe subset is
+# auto-applied and every applied change is reversible (title_reversions.jsonl). The
+# rest is written to a review file.
+#
+# Replace the placeholders and install via the matching .plist.template:
+#   __HOME__     your home dir, e.g. /Users/you
+#   __INSTALL__  where you cloned this repo, e.g. /Users/you/calendar-colors
+#   __PY__       a python with pyyaml, e.g. __INSTALL__/.venv/bin/python3
+# REQUIRES an LLM agent CLI on PATH to PROPOSE titles (this template uses
+# `claude -p`; swap for your own). The apply/gate/revert logic is plain Python.
+set -o pipefail
+export HOME=__HOME__
+export PYTHONPATH=__INSTALL__
+PY="__PY__"
+RUN="__INSTALL__/gcal/title_rewrite_run.py"
+STATE_DIR="$HOME/.claude/state/calendar"
+REVIEW="$STATE_DIR/title-rewrite-review.txt"
+mkdir -p "$STATE_DIR"
+
+read -r -d '' PROMPT <<EOF
+You are the calendar title-rewrite job (non-interactive). Rewrite ONLY titles on
+calendars whose config sets title_rewrite: llm. Do EXACTLY this:
+
+1. Run: $PY $RUN --list-candidates
+   Read JSON {candidates:[{event_id, calendar_id, title, has_attendees}]}.
+2. For EACH candidate, propose a cleaner title. HARD RULES:
+   - Keep the leading emoji unchanged.
+   - Preserve EXACTLY, verbatim: every person/place name, every number/code
+     (e.g. "AC 541", "YYZ"), every (parenthetical), every [tag], every /command.
+   - If has_attendees is true, KEEP the user's own name(s) verbatim. Only drop a
+     redundant self-name on SOLO events. (The gate enforces this from self_names.)
+   - Otherwise: drop a redundant self-reference ("<self> to X" -> "X"), fix casing,
+     and EXPAND known abbreviations from the configured abbreviations file. Do NOT
+     reword sensitive/personal titles.
+   - Assign confidence 0.0-1.0 (honest; <0.8 routes to review).
+   If a title is already clean, propose it unchanged.
+3. For EACH, run (quote args; append --has-attendees when has_attendees is true):
+   $PY $RUN --apply --event-id "<id>" --calendar-id "<cal>" --original "<title>" --proposed "<rewrite>" --confidence <c> [--has-attendees]
+   The gate returns verdict apply|review|reject|noop. Trust it — do not re-apply.
+4. For every verdict "review" or "reject", append one line to $REVIEW:
+   "<original>  =>  <proposed>   [<verdict>: <reason>]"
+5. Print ONE summary line: applied=N review=N reject=N noop=N.
+Do not touch any other calendar. Do not ask questions.
+EOF
+
+# Retry so a transient LLM/API drop doesn't mark the weekly job errored.
+attempt=0; max=3
+while :; do
+  attempt=$((attempt+1))
+  out=$(claude -p "$PROMPT" --dangerously-skip-permissions 2>&1); rc=$?
+  printf '%s\n' "$out"
+  if [ "$rc" -eq 0 ] && ! printf '%s' "$out" | grep -q "API Error"; then
+    exit 0
+  fi
+  if [ "$attempt" -ge "$max" ]; then
+    echo "title-rewrite: all $max attempts failed (rc=$rc)"; exit 1
+  fi
+  echo "title-rewrite: attempt $attempt failed (rc=$rc) — retrying in 60s"
+  sleep 60
+done
